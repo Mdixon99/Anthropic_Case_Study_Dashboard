@@ -1,0 +1,1952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anthropic Compute Capacity Allocation Framework</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        /* ===== RESET & BASE ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #F8F8F6;
+            --card: #FFFFFF;
+            --text-primary: #1B1B1B;
+            --text-secondary: #5A5A5A;
+            --text-muted: #8C8C8C;
+            --border: #E5E5E0;
+            --accent: #C96442;
+            --accent-light: #F5EDE8;
+            --blue: #3B6B9E;
+            --blue-light: #E8EFF6;
+            --green: #4A8C6F;
+            --green-light: #E8F4EE;
+            --amber: #B8860B;
+            --amber-light: #FBF5E6;
+            --purple: #6B5B8D;
+            --purple-light: #F0ECF5;
+            --red: #C0392B;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.10);
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===== NAVIGATION ===== */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(248,248,246,0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+        }
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 56px;
+        }
+        .nav-brand {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+        }
+        .nav-links { display: flex; gap: 0.25rem; }
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            padding: 0.4rem 0.7rem;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+        .nav-links a:hover {
+            color: var(--text-primary);
+            background: rgba(0,0,0,0.04);
+        }
+
+        /* ===== HERO ===== */
+        .hero {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 2rem 2rem;
+        }
+        .hero-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            margin-bottom: 0.75rem;
+        }
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.035em;
+            line-height: 1.15;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            max-width: 700px;
+        }
+        .hero-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 650px;
+            line-height: 1.65;
+        }
+        .hero-meta {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 2rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .hero-meta span { font-weight: 500; color: var(--text-secondary); }
+
+        /* ===== LAYOUT ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        .section {
+            margin-bottom: 3rem;
+        }
+        .section-header {
+            margin-bottom: 1.5rem;
+        }
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            margin-bottom: 0.35rem;
+        }
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--text-primary);
+        }
+        .section-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.35rem;
+            max-width: 600px;
+        }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            padding: 1.5rem;
+            transition: box-shadow 0.2s;
+        }
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ===== METRIC CARDS ===== */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+        .metric-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+        .metric-card.accent-blue::before { background: var(--blue); }
+        .metric-card.accent-green::before { background: var(--green); }
+        .metric-card.accent-amber::before { background: var(--amber); }
+        .metric-card.accent-purple::before { background: var(--purple); }
+        .metric-label {
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .metric-value {
+            font-size: 1.85rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-top: 0.25rem;
+            color: var(--text-primary);
+        }
+        .metric-sub {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        /* ===== GRID LAYOUTS ===== */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.25rem;
+        }
+
+        /* ===== CHART CONTAINERS ===== */
+        .chart-wrap {
+            position: relative;
+            width: 100%;
+        }
+        .chart-wrap canvas {
+            width: 100% !important;
+        }
+
+        /* ===== SCENARIO TABS ===== */
+        .tab-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .tab-btn {
+            padding: 0.55rem 1.25rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .tab-btn:hover {
+            border-color: var(--text-muted);
+            color: var(--text-primary);
+        }
+        .tab-btn.active {
+            background: var(--text-primary);
+            color: white;
+            border-color: var(--text-primary);
+        }
+
+        /* ===== TABLES ===== */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .data-table thead th {
+            text-align: left;
+            padding: 0.65rem 0.75rem;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border);
+        }
+        .data-table tbody td {
+            padding: 0.65rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .data-table tbody tr:hover {
+            background: rgba(0,0,0,0.015);
+        }
+        .data-table .num {
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* ===== TIER VISUAL ===== */
+        .tier-bar-container {
+            display: flex;
+            height: 48px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 1rem 0;
+            box-shadow: var(--shadow-sm);
+        }
+        .tier-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 0.82rem;
+            transition: all 0.4s ease;
+            position: relative;
+        }
+        .tier-segment .tier-tooltip {
+            display: none;
+            position: absolute;
+            bottom: 110%;
+            background: var(--text-primary);
+            color: white;
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        .tier-segment:hover .tier-tooltip { display: block; }
+
+        /* ===== LEGEND ===== */
+        .legend-row {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+        }
+
+        /* ===== SCENARIO DETAIL CARDS ===== */
+        .scenario-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .scenario-metric {
+            text-align: center;
+            padding: 1rem;
+            border-radius: var(--radius-sm);
+            background: var(--bg);
+        }
+        .scenario-metric .sm-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+        .scenario-metric .sm-value {
+            font-size: 1.35rem;
+            font-weight: 800;
+            margin-top: 0.2rem;
+            letter-spacing: -0.02em;
+        }
+
+        /* ===== FRAMEWORK DIAGRAM ===== */
+        .framework-flow {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .fw-step {
+            text-align: center;
+            padding: 1.25rem 1rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            position: relative;
+        }
+        .fw-step-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.5rem;
+        }
+        .fw-step-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+        .fw-step-desc {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        .fw-step.p0 { background: #FEF2F2; border-color: #FECACA; }
+        .fw-step.p0 .fw-step-label { color: var(--red); }
+        .fw-step.p1 { background: var(--amber-light); border-color: #E8D5A0; }
+        .fw-step.p1 .fw-step-label { color: var(--amber); }
+        .fw-step.p2 { background: var(--blue-light); border-color: #B8D0E8; }
+        .fw-step.p2 .fw-step-label { color: var(--blue); }
+        .fw-step.buffer { background: var(--green-light); border-color: #B8E0CC; }
+        .fw-step.buffer .fw-step-label { color: var(--green); }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            margin-top: 4rem;
+            padding: 2rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        /* ===== HIGHLIGHT BADGE ===== */
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .badge-blue { background: var(--blue-light); color: var(--blue); }
+        .badge-green { background: var(--green-light); color: var(--green); }
+        .badge-amber { background: var(--amber-light); color: var(--amber); }
+
+        /* ===== CALLOUT ===== */
+        .callout {
+            padding: 1rem 1.25rem;
+            border-radius: var(--radius-sm);
+            border-left: 3px solid var(--accent);
+            background: var(--accent-light);
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-top: 1rem;
+        }
+
+        /* ===== SIMULATOR ===== */
+        .budget-bar-track {
+            height: 8px;
+            background: #ECECEA;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .budget-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: var(--green);
+            transition: width 0.2s, background 0.2s;
+        }
+        .budget-bar-fill.over { background: var(--red); }
+        .budget-bar-limit {
+            position: absolute;
+            right: 0; top: 0; bottom: 0;
+            width: 25%;
+            background: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 3px,
+                rgba(0,0,0,0.06) 3px,
+                rgba(0,0,0,0.06) 6px
+            );
+            border-left: 2px dashed var(--text-muted);
+        }
+        .sim-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+        .slider-group {
+            margin-bottom: 1.15rem;
+        }
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.4rem;
+        }
+        .slider-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .slider-value {
+            font-size: 1.1rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+        }
+        .slider-detail {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 0.3rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .sim-range {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ECECEA;
+            outline: none;
+            cursor: pointer;
+        }
+        .sim-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+        .sim-range::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+        .range-blue::-webkit-slider-thumb { background: var(--blue); }
+        .range-blue::-moz-range-thumb { background: var(--blue); }
+        .range-amber::-webkit-slider-thumb { background: var(--amber); }
+        .range-amber::-moz-range-thumb { background: var(--amber); }
+        .range-purple::-webkit-slider-thumb { background: var(--purple); }
+        .range-purple::-moz-range-thumb { background: var(--purple); }
+        .range-gray::-webkit-slider-thumb { background: var(--text-muted); }
+        .range-gray::-moz-range-thumb { background: var(--text-muted); }
+        .sim-outputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            align-content: start;
+        }
+        .sim-output-card {
+            background: var(--bg);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.15rem;
+            text-align: center;
+        }
+        .sim-out-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+        .sim-out-value {
+            font-size: 1.65rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-top: 0.15rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .sim-out-sub {
+            font-size: 0.73rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+        }
+        .preset-btn {
+            padding: 0.35rem 0.85rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--card);
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .preset-btn:hover {
+            border-color: var(--text-primary);
+            color: var(--text-primary);
+            background: var(--bg);
+        }
+
+        /* ===== AUTO / LOCK BADGES ===== */
+        .auto-badge, .lock-badge {
+            display: none;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            vertical-align: middle;
+            margin-left: 0.4rem;
+        }
+        .auto-badge {
+            background: var(--blue-light);
+            color: var(--blue);
+        }
+        .auto-badge.visible, .lock-badge.visible {
+            display: inline-block;
+        }
+        .lock-badge {
+            background: var(--green-light);
+            color: var(--green);
+        }
+        .slider-group.auto-controlled .sim-range {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+        .slider-group.auto-controlled .slider-value {
+            color: var(--blue);
+        }
+        .sim-output-card.locked {
+            outline: 2px solid var(--green);
+            outline-offset: -2px;
+        }
+
+        /* ===== TOGGLE GROUP ===== */
+        .toggle-group {
+            display: flex;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .toggle-btn {
+            flex: 1;
+            padding: 0.45rem 0.75rem;
+            border: none;
+            background: var(--card);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .toggle-btn:first-child { border-right: 1px solid var(--border); }
+        .toggle-btn:hover { color: var(--text-primary); background: var(--bg); }
+        .toggle-btn.active {
+            background: var(--text-primary);
+            color: white;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 900px) {
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .framework-flow { grid-template-columns: repeat(2, 1fr); }
+            .scenario-metrics { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 1.8rem; }
+            .nav-links { display: none; }
+            .sim-grid { grid-template-columns: 1fr; }
+            .sim-outputs { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 600px) {
+            .metrics-grid { grid-template-columns: 1fr; }
+            .framework-flow { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== NAVIGATION ===== -->
+<nav class="nav">
+    <div class="nav-inner">
+        <div class="nav-brand">Compute Allocation Framework</div>
+        <div class="nav-links">
+            <a href="#supply">Supply</a>
+            <a href="#framework">Framework</a>
+            <a href="#scenarios">Scenarios</a>
+            <a href="#sensitivity">Sensitivity</a>
+            <a href="#simulator">Simulator</a>
+            <a href="#economics">Economics</a>
+            <a href="#training">Training</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ===== HERO ===== -->
+<header class="hero">
+    <div class="hero-label">Anthropic Case Study</div>
+    <h1>Compute Capacity Allocation Framework</h1>
+    <p class="hero-subtitle">
+        A tiered priority framework for allocating compute resources across inference, training, and research &mdash;
+        ensuring Anthropic upholds safety, remains at the frontier, and supports revenue generation.
+    </p>
+    <div class="hero-meta">
+        <div>Author: <span>Matthew Dixon</span></div>
+        <div>Date: <span>February 17, 2026</span></div>
+    </div>
+</header>
+
+<div class="container">
+
+    <!-- ===== EXECUTIVE SUMMARY ===== -->
+    <section class="section" id="summary">
+        <div class="section-header">
+            <div class="section-label">Overview</div>
+            <h2 class="section-title">Executive Summary</h2>
+        </div>
+        <div class="metrics-grid">
+            <div class="metric-card accent-blue">
+                <div class="metric-label">Total H100e Supply</div>
+                <div class="metric-value">12.1B</div>
+                <div class="metric-sub">Annual instance hours</div>
+            </div>
+            <div class="metric-card accent-green">
+                <div class="metric-label">Estimated Revenue</div>
+                <div class="metric-value">$18B</div>
+                <div class="metric-sub">Recommended scenario</div>
+            </div>
+            <div class="metric-card accent-amber">
+                <div class="metric-label">Annual Training Need</div>
+                <div class="metric-value">1.08B</div>
+                <div class="metric-sub">H100 hours / year</div>
+            </div>
+            <div class="metric-card accent-purple">
+                <div class="metric-label">Cloud Providers</div>
+                <div class="metric-value">3</div>
+                <div class="metric-sub">AWS &middot; GCP &middot; Azure</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== ACCELERATOR SUPPLY ===== -->
+    <section class="section" id="supply">
+        <div class="section-header">
+            <div class="section-label">Infrastructure</div>
+            <h2 class="section-title">Accelerator Supply</h2>
+            <p class="section-desc">Estimated fleet across three cloud providers, normalized to H100 equivalent annual instance hours.</p>
+        </div>
+        <div class="grid-2">
+            <div class="card">
+                <div class="chart-wrap" style="height:300px;">
+                    <canvas id="supplyChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Provider</th>
+                            <th>Chip</th>
+                            <th>Quantity</th>
+                            <th>H100e Ratio</th>
+                            <th>H100e Units</th>
+                            <th>Annual Hours</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-amber">AWS</span></td>
+                            <td>Trainium 2</td>
+                            <td class="num">1,000,000</td>
+                            <td>1.50 : 1</td>
+                            <td class="num">666,667</td>
+                            <td class="num">5.84B</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-blue">GCP</span></td>
+                            <td>TPU v5p</td>
+                            <td class="num">1,000,000</td>
+                            <td>4.00 : 1</td>
+                            <td class="num">250,000</td>
+                            <td class="num">2.19B</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-green">Azure</span></td>
+                            <td>B200</td>
+                            <td class="num">156,556</td>
+                            <td>0.33 : 1</td>
+                            <td class="num">469,667</td>
+                            <td class="num">4.11B</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5" style="font-weight:700; border-top: 2px solid var(--border); padding-top:0.75rem;">Total H100 Equivalent Supply</td>
+                            <td class="num" style="border-top: 2px solid var(--border); padding-top:0.75rem; font-size:1rem;">12.14B</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FRAMEWORK ===== -->
+    <section class="section" id="framework">
+        <div class="section-header">
+            <div class="section-label">Methodology</div>
+            <h2 class="section-title">Tiered Priority Framework</h2>
+            <p class="section-desc">Compute allocations follow a tiered system ensuring safety is non-negotiable, strategic initiatives are funded, and flexible capacity enables tradeoff analysis.</p>
+        </div>
+        <div class="card">
+            <div class="framework-flow">
+                <div class="fw-step p0">
+                    <div class="fw-step-label">P0 &mdash; 10%</div>
+                    <div class="fw-step-title">Safety / SLA</div>
+                    <div class="fw-step-desc">Non-negotiable. Safety evaluations, red teaming, reliability, security, and contracted SLAs.</div>
+                </div>
+                <div class="fw-step p1">
+                    <div class="fw-step-label">P1 &mdash; Variable</div>
+                    <div class="fw-step-title">Strategic Initiative</div>
+                    <div class="fw-step-desc">Company-wide priorities. A category is elevated from P2 when leadership identifies a strategic imperative.</div>
+                </div>
+                <div class="fw-step p2">
+                    <div class="fw-step-label">P2 &mdash; Flex</div>
+                    <div class="fw-step-title">Flexible Capacity</div>
+                    <div class="fw-step-desc">Where tradeoffs occur. Remaining capacity split between inference, training, and research.</div>
+                </div>
+                <div class="fw-step buffer">
+                    <div class="fw-step-label">Buffer &mdash; 15%</div>
+                    <div class="fw-step-title">Reserve</div>
+                    <div class="fw-step-desc">Reserved for unforeseen circumstances, incidents, or unexpected demand spikes.</div>
+                </div>
+            </div>
+            <div class="tier-bar-container" id="tierBar">
+                <div class="tier-segment" style="width:10%; background:#C0392B;">
+                    P0: 10%
+                    <span class="tier-tooltip">Safety/SLA: 1.21B H100 hrs</span>
+                </div>
+                <div class="tier-segment" id="tierP1" style="width:0%; background: var(--amber); font-size:0;">
+                    <span class="tier-tooltip">Strategic Initiative</span>
+                </div>
+                <div class="tier-segment" id="tierP2" style="width:75%; background: var(--blue);">
+                    P2: 75%
+                    <span class="tier-tooltip">Flexible Capacity: 9.11B H100 hrs</span>
+                </div>
+                <div class="tier-segment" style="width:15%; background: var(--green);">
+                    Buffer: 15%
+                    <span class="tier-tooltip">Reserve: 1.82B H100 hrs</span>
+                </div>
+            </div>
+            <div class="legend-row">
+                <div class="legend-item"><div class="legend-dot" style="background:#C0392B;"></div>P0 &mdash; Safety/SLA</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--amber);"></div>P1 &mdash; Strategic Initiative</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--blue);"></div>P2 &mdash; Flexible</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--green);"></div>Buffer</div>
+            </div>
+            <div class="callout">
+                <strong>How it works:</strong> When a strategic initiative is identified, the corresponding category (inference, training, or research)
+                is elevated from P2 to P1. The initiative also informs how remaining P2 capacity is split between the two remaining categories.
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SCENARIO ANALYSIS ===== -->
+    <section class="section" id="scenarios">
+        <div class="section-header">
+            <div class="section-label">Analysis</div>
+            <h2 class="section-title">Scenario Comparison</h2>
+            <p class="section-desc">Three scenarios demonstrating how the framework produces different allocations based on strategic priorities.</p>
+        </div>
+
+        <div class="tab-group">
+            <button class="tab-btn active" onclick="switchScenario(0)">Recommendation</button>
+            <button class="tab-btn" onclick="switchScenario(1)">Revenue Priority</button>
+            <button class="tab-btn" onclick="switchScenario(2)">Training Priority</button>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="chart-wrap" style="height:320px;">
+                    <canvas id="scenarioDonut"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h3 id="scenarioTitle" style="font-size:1.1rem; font-weight:700; margin-bottom:0.5rem;">Scenario #1: Recommendation</h3>
+                <p id="scenarioDesc" style="font-size:0.88rem; color:var(--text-secondary); line-height:1.6;"></p>
+                <div class="scenario-metrics">
+                    <div class="scenario-metric">
+                        <div class="sm-label">Revenue</div>
+                        <div class="sm-value" id="smRevenue" style="color:var(--green);">$18.0B</div>
+                    </div>
+                    <div class="scenario-metric">
+                        <div class="sm-label">P1 Strategic</div>
+                        <div class="sm-value" id="smP1" style="color:var(--amber);">None</div>
+                    </div>
+                    <div class="scenario-metric">
+                        <div class="sm-label">P2 Flex</div>
+                        <div class="sm-value" id="smP2" style="color:var(--blue);">75%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Allocation bar comparison -->
+        <div class="card" style="margin-top:1.25rem;">
+            <div style="font-weight:700; margin-bottom:1rem; font-size:0.95rem;">All Scenarios &mdash; Allocation Breakdown (% of Total Capacity)</div>
+            <div class="chart-wrap" style="height:220px;">
+                <canvas id="scenarioBarChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== INTERACTIVE SIMULATOR ===== -->
+    <section class="section" id="simulator">
+        <div class="section-header">
+            <div class="section-label">Interactive</div>
+            <h2 class="section-title">Allocation Simulator</h2>
+            <p class="section-desc">Drag the sliders to build your own allocation and see the real-time impact on revenue, training capacity, and research investment.</p>
+        </div>
+
+        <div class="card" style="padding:2rem;">
+            <!-- Budget bar -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.35rem;">
+                <div style="font-weight:700; font-size:0.9rem;">Capacity Budget</div>
+                <div id="budgetLabel" style="font-size:0.85rem; font-weight:600;"></div>
+            </div>
+            <div class="budget-bar-track">
+                <div class="budget-bar-fill" id="budgetBarFill"></div>
+                <div class="budget-bar-limit"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-muted); margin-top:0.3rem;">
+                <span>0%</span>
+                <span>Fixed: 10% Safety/SLA + 15% Buffer = 25%</span>
+                <span>75% allocatable</span>
+            </div>
+
+            <div class="sim-grid">
+                <!-- Sliders -->
+                <div class="sim-sliders">
+                    <div class="slider-group" id="infSliderGroup">
+                        <div class="slider-header">
+                            <div class="slider-label">
+                                <span class="legend-dot" style="background:var(--blue);"></span>
+                                Inference
+                                <span class="auto-badge" id="infAutoBadge">AUTO</span>
+                            </div>
+                            <div class="slider-value" id="simInfVal">20%</div>
+                        </div>
+                        <input type="range" id="simInf" min="0" max="75" value="20" class="sim-range range-blue" oninput="onSliderInput()">
+                        <div class="slider-detail" id="simInfDetail">2.43B H100 hours</div>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <div class="slider-label">
+                                <span class="legend-dot" style="background:var(--amber);"></span>
+                                Training
+                            </div>
+                            <div class="slider-value" id="simTrainVal">18%</div>
+                        </div>
+                        <input type="range" id="simTrain" min="0" max="75" value="18" class="sim-range range-amber" oninput="onSliderInput()">
+                        <div class="slider-detail" id="simTrainDetail">2.19B H100 hours</div>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <div class="slider-label">
+                                <span class="legend-dot" style="background:var(--purple);"></span>
+                                Research
+                            </div>
+                            <div class="slider-value" id="simResVal">37%</div>
+                        </div>
+                        <input type="range" id="simRes" min="0" max="75" value="37" class="sim-range range-purple" oninput="onSliderInput()">
+                        <div class="slider-detail" id="simResDetail">4.49B H100 hours</div>
+                    </div>
+
+                    <div style="border-top:1px solid var(--border); padding-top:1rem; margin-top:0.5rem;">
+                        <div class="slider-header">
+                            <div class="slider-label" style="font-weight:500;">
+                                Utilization Rate
+                            </div>
+                            <div class="slider-value" id="simUtilVal">20%</div>
+                        </div>
+                        <input type="range" id="simUtil" min="10" max="70" value="20" class="sim-range range-gray" oninput="onSliderInput()">
+                        <div class="slider-detail" id="simUtilDetail">Revenue per H100 hr: $7.48 (post-discount)</div>
+
+                        <!-- Utilization mode toggle -->
+                        <div class="util-toggle" style="margin-top:0.85rem;">
+                            <div style="font-size:0.78rem; font-weight:600; color:var(--text-muted); margin-bottom:0.4rem;">When utilization improves:</div>
+                            <div class="toggle-group">
+                                <button class="toggle-btn active" id="toggleGrow" onclick="setUtilMode('grow')">Grow Revenue</button>
+                                <button class="toggle-btn" id="toggleFree" onclick="setUtilMode('free')">Free Capacity</button>
+                            </div>
+                            <div class="slider-detail" id="utilModeDesc" style="margin-top:0.35rem;">
+                                Inference capacity stays fixed, higher utilization increases revenue.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preset buttons -->
+                    <div style="margin-top:1.25rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                        <span style="font-size:0.78rem; font-weight:600; color:var(--text-muted); align-self:center; margin-right:0.25rem;">Presets:</span>
+                        <button class="preset-btn" onclick="applyPreset(19.825, 17.75, 37.425, 20)">Recommendation</button>
+                        <button class="preset-btn" onclick="applyPreset(35, 24, 16, 20)">Revenue Priority</button>
+                        <button class="preset-btn" onclick="applyPreset(16, 35, 24, 20)">Training Priority</button>
+                        <button class="preset-btn" onclick="applyPreset(2.5, 2.5, 70, 20)">70% Research</button>
+                    </div>
+                </div>
+
+                <!-- Output metrics -->
+                <div class="sim-outputs">
+                    <div class="sim-output-card" id="simRevenueCard">
+                        <div class="sim-out-label">Serviceable Revenue <span class="lock-badge" id="revLockBadge">LOCKED</span></div>
+                        <div class="sim-out-value" id="simRevenue" style="color:var(--green);">$18.0B</div>
+                        <div class="sim-out-sub" id="simRevSub">At 20% utilization, post-discount</div>
+                    </div>
+                    <div class="sim-output-card">
+                        <div class="sim-out-label">Training Investment</div>
+                        <div class="sim-out-value" id="simTrainCap" style="color:var(--amber);">2.19B</div>
+                        <div class="sim-out-sub">H100 hours for training</div>
+                    </div>
+                    <div class="sim-output-card">
+                        <div class="sim-out-label">Research Investment</div>
+                        <div class="sim-out-value" id="simResHrs" style="color:var(--purple);">4.49B</div>
+                        <div class="sim-out-sub">H100 hours for research</div>
+                    </div>
+                    <div class="sim-output-card">
+                        <div class="sim-out-label">Revenue per H100 Hour</div>
+                        <div class="sim-out-value" id="simRevHr" style="color:var(--blue);">$7.48</div>
+                        <div class="sim-out-sub" id="simRevHrSub">Post 30% enterprise discount</div>
+                    </div>
+
+                    <!-- Mini donut -->
+                    <div class="sim-output-card" style="grid-column: 1 / -1;">
+                        <div style="height:200px;">
+                            <canvas id="simDonut"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SENSITIVITY ANALYSIS ===== -->
+    <section class="section" id="sensitivity">
+        <div class="section-header">
+            <div class="section-label">Tradeoffs</div>
+            <h2 class="section-title">Sensitivity Analysis</h2>
+            <p class="section-desc">Exploring how changes in key variables shift allocations and impact revenue, training capacity, and research hours.</p>
+        </div>
+        <div class="card">
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Scenario</th>
+                            <th>Inference</th>
+                            <th>Training</th>
+                            <th>Research</th>
+                            <th>Revenue</th>
+                            <th>% Rec. Training</th>
+                            <th>Research Hours</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight:600;">Recommendation</td>
+                            <td class="num">20%</td>
+                            <td class="num">18%</td>
+                            <td class="num">37%</td>
+                            <td class="num">$18.0B</td>
+                            <td class="num">100%</td>
+                            <td class="num">4.55B</td>
+                        </tr>
+                        <tr>
+                            <td>Revenue grows to $25B</td>
+                            <td class="num">28%</td>
+                            <td class="num">18%</td>
+                            <td class="num">30%</td>
+                            <td class="num">$25.0B</td>
+                            <td class="num">100%</td>
+                            <td class="num">3.61B</td>
+                        </tr>
+                        <tr>
+                            <td>Additional training run needed</td>
+                            <td class="num">20%</td>
+                            <td class="num">22%</td>
+                            <td class="num">33%</td>
+                            <td class="num">$18.0B</td>
+                            <td class="num">125%</td>
+                            <td class="num">4.01B</td>
+                        </tr>
+                        <tr>
+                            <td>Rev/Hr drops to $5.50, target unchanged</td>
+                            <td class="num">27%</td>
+                            <td class="num">18%</td>
+                            <td class="num">30%</td>
+                            <td class="num">$18.0B</td>
+                            <td class="num">100%</td>
+                            <td class="num">3.68B</td>
+                        </tr>
+                        <tr>
+                            <td>Rev/Hr drops to $5.50, target changes</td>
+                            <td class="num">20%</td>
+                            <td class="num">18%</td>
+                            <td class="num">37%</td>
+                            <td class="num">$13.2B</td>
+                            <td class="num">100%</td>
+                            <td class="num">4.55B</td>
+                        </tr>
+                        <tr>
+                            <td>Training hrs multiple declines to 3x</td>
+                            <td class="num">20%</td>
+                            <td class="num">13%</td>
+                            <td class="num">42%</td>
+                            <td class="num">$18.0B</td>
+                            <td class="num">75%</td>
+                            <td class="num">5.08B</td>
+                        </tr>
+                        <tr>
+                            <td>Leadership recommends 70% research</td>
+                            <td class="num">3%</td>
+                            <td class="num">3%</td>
+                            <td class="num">70%</td>
+                            <td class="num">$2.3B</td>
+                            <td class="num">14%</td>
+                            <td class="num">8.50B</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card" style="margin-top:1.25rem;">
+            <div class="chart-wrap" style="height:300px;">
+                <canvas id="sensitivityChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== REVENUE ECONOMICS ===== -->
+    <section class="section" id="economics">
+        <div class="section-header">
+            <div class="section-label">Economics</div>
+            <h2 class="section-title">Revenue per Inference Hour</h2>
+            <p class="section-desc">How utilization rates impact revenue per H100 hour, before and after a 30% discount for enterprise pricing and non-API revenue.</p>
+        </div>
+        <div class="grid-2">
+            <div class="card">
+                <div class="chart-wrap" style="height:300px;">
+                    <canvas id="utilizationChart"></canvas>
+                </div>
+                <div class="callout" style="margin-top:1rem;">
+                    <strong>Why the curves diverge:</strong> The theoretical model assumes constant throughput and pricing at every utilization level.
+                    In practice, revenue per hour exhibits diminishing returns above ~50% utilization due to queuing effects (latency degrades exponentially),
+                    batching efficiency plateaus, demand mix shifting towards lower-margin workloads, and reduced operational headroom for spikes and maintenance.
+                </div>
+            </div>
+            <div class="card">
+                <div style="font-weight:700; margin-bottom:1rem; font-size:0.95rem;">Pricing Matrix &mdash; Claude Model Family</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Release</th>
+                            <th>% Token Usage</th>
+                            <th>Input / MTok</th>
+                            <th>Output / MTok</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight:600;">Opus 4.6</td>
+                            <td>Feb 2026</td>
+                            <td class="num">10%</td>
+                            <td class="num">$5.00</td>
+                            <td class="num">$25.00</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Opus 4.5</td>
+                            <td>Nov 2025</td>
+                            <td class="num">10%</td>
+                            <td class="num">$5.00</td>
+                            <td class="num">$25.00</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Opus 4.1</td>
+                            <td>Aug 2025</td>
+                            <td class="num">10%</td>
+                            <td class="num">$15.00</td>
+                            <td class="num">$75.00</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Opus 4</td>
+                            <td>May 2025</td>
+                            <td class="num">10%</td>
+                            <td class="num">$15.00</td>
+                            <td class="num">$75.00</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Sonnet 4.5</td>
+                            <td>Sep 2025</td>
+                            <td class="num">25%</td>
+                            <td class="num">$3.00</td>
+                            <td class="num">$15.00</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Sonnet 4</td>
+                            <td>May 2025</td>
+                            <td class="num">25%</td>
+                            <td class="num">$3.00</td>
+                            <td class="num">$15.00</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Haiku 4.5</td>
+                            <td>Oct 2025</td>
+                            <td class="num">3%</td>
+                            <td class="num">$1.00</td>
+                            <td class="num">$5.00</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Haiku 3.5</td>
+                            <td>Nov 2024</td>
+                            <td class="num">3%</td>
+                            <td class="num">$0.80</td>
+                            <td class="num">$4.00</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Haiku 3</td>
+                            <td>Mar 2024</td>
+                            <td class="num">3%</td>
+                            <td class="num">$0.25</td>
+                            <td class="num">$1.25</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-muted);">
+                    Weighted Avg: <strong style="color:var(--text-primary);">$5.57</strong> / M Input &middot; <strong style="color:var(--text-primary);">$27.84</strong> / M Output
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== TRAINING BENCHMARKS ===== -->
+    <section class="section" id="training">
+        <div class="section-header">
+            <div class="section-label">Training</div>
+            <h2 class="section-title">Training Cost Benchmarks</h2>
+            <p class="section-desc">Estimated H100 hours to train industry models and Anthropic's projected annual training requirements.</p>
+        </div>
+        <div class="grid-2">
+            <div class="card">
+                <div style="font-weight:700; margin-bottom:0.5rem; font-size:0.95rem;">Industry Model Training Hours (H100)</div>
+                <div class="chart-wrap" style="height:320px;">
+                    <canvas id="trainingChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div style="font-weight:700; margin-bottom:1rem; font-size:0.95rem;">Anthropic Annual Training Estimate</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>YOY increase in model FLOP</td>
+                            <td class="num">400%</td>
+                        </tr>
+                        <tr>
+                            <td>H100 hrs per pre-training run (Opus-based)</td>
+                            <td class="num">336.7M</td>
+                        </tr>
+                        <tr>
+                            <td>Pre-training runs per year</td>
+                            <td class="num">2</td>
+                        </tr>
+                        <tr>
+                            <td>Post-training FLOP (% of pre-training)</td>
+                            <td class="num">20%</td>
+                        </tr>
+                        <tr>
+                            <td>Variants per training run</td>
+                            <td class="num">3</td>
+                        </tr>
+                        <tr>
+                            <td>H100 hrs per post-training</td>
+                            <td class="num">67.3M</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td style="font-weight:700; border-top:2px solid var(--border); padding-top:0.75rem;">Total H100 Hours / Year</td>
+                            <td class="num" style="font-size:1.1rem; border-top:2px solid var(--border); padding-top:0.75rem; color:var(--accent);">1.077B</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div class="callout" style="margin-top:1rem;">
+                    Training hours are multiplied by <strong>2x</strong> in allocations to account for restarts,
+                    dead-end runs, and capacity not being online 100% of the time.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== OPERATIONS ===== -->
+    <section class="section" id="operations">
+        <div class="section-header">
+            <div class="section-label">Operations</div>
+            <h2 class="section-title">Capacity Management & Governance</h2>
+            <p class="section-desc">Key operational recommendations for managing and communicating compute allocations.</p>
+        </div>
+        <div class="grid-3">
+            <div class="card">
+                <div style="font-size:1.5rem; margin-bottom:0.5rem;">&#9776;</div>
+                <div style="font-weight:700; font-size:0.95rem; margin-bottom:0.4rem;">Communication</div>
+                <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.55;">
+                    Biweekly allocation meetings with director-level advocates from inference, training, and research.
+                    ROI calculations required for additional capacity requests.
+                </p>
+            </div>
+            <div class="card">
+                <div style="font-size:1.5rem; margin-bottom:0.5rem;">&#9881;</div>
+                <div style="font-weight:700; font-size:0.95rem; margin-bottom:0.4rem;">Shared Resource Pools</div>
+                <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.55;">
+                    Teams grouped by workload type within shared pools. Request forms capture accelerator type,
+                    duration, H100e equivalent, and request priority (critical / aligned / growth bet).
+                </p>
+            </div>
+            <div class="card">
+                <div style="font-size:1.5rem; margin-bottom:0.5rem;">&#9878;</div>
+                <div style="font-weight:700; font-size:0.95rem; margin-bottom:0.4rem;">KPI Tracking</div>
+                <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.55;">
+                    <strong>Capabilities per training hour</strong> measures research effectiveness.
+                    <strong>Margin per inference request</strong> tracks unit economics. Both guide reallocation decisions.
+                </p>
+            </div>
+        </div>
+    </section>
+
+</div><!-- /container -->
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+    <p>Anthropic Compute Capacity Allocation Framework &mdash; Matthew Dixon &mdash; February 2026</p>
+    <p style="margin-top:0.3rem;">Built with Chart.js &middot; <a href="Case_Study_Matthew_Dixon_Final.pdf">View Full Case Study (PDF)</a></p>
+</footer>
+
+<script>
+// ===== CHART DEFAULTS =====
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#5A5A5A';
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyle = 'rectRounded';
+Chart.defaults.plugins.legend.labels.padding = 16;
+
+const COLORS = {
+    blue: '#3B6B9E',
+    green: '#4A8C6F',
+    amber: '#B8860B',
+    purple: '#6B5B8D',
+    red: '#C0392B',
+    accent: '#C96442',
+    blueLight: 'rgba(59,107,158,0.15)',
+    greenLight: 'rgba(74,140,111,0.15)',
+    amberLight: 'rgba(184,134,11,0.15)',
+};
+
+// ===== 1. SUPPLY CHART =====
+new Chart(document.getElementById('supplyChart'), {
+    type: 'bar',
+    data: {
+        labels: ['AWS\nTrainium 2', 'GCP\nTPU v5p', 'Azure\nB200'],
+        datasets: [{
+            label: 'Annual H100e Instance Hours (Billions)',
+            data: [5.84, 2.19, 4.11],
+            backgroundColor: [COLORS.amber, COLORS.blue, COLORS.green],
+            borderRadius: 6,
+            barThickness: 48,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ctx.parsed.x.toFixed(2) + 'B H100e hours'
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: 'rgba(0,0,0,0.04)' },
+                title: { display: true, text: 'Billions of H100e Hours', font: { weight: '600', size: 11 } },
+                ticks: { callback: v => v + 'B' }
+            },
+            y: {
+                grid: { display: false },
+                ticks: { font: { weight: '600', size: 12 } }
+            }
+        }
+    }
+});
+
+// ===== 2. SCENARIO DATA =====
+const scenarios = [
+    {
+        title: 'Scenario #1: Recommendation',
+        desc: 'No strategic initiative claimed. Allocation based on Anthropic\'s identity as a research company. Training sized to produce 2 model families/year with 3 variants each. Inference sized to meet $18B revenue demand estimate. Remaining capacity prioritizes research to stay at the frontier.',
+        inference: 20, training: 18, research: 37,
+        revenue: '$18.0B', p1: 'None', p2: '75%',
+        p1Pct: 0, p2Pct: 75
+    },
+    {
+        title: 'Scenario #2: Revenue Priority',
+        desc: 'Strategic initiative: maximize serviceable revenue. 35% of all capacity serves inference, supporting $31.8B in revenue. Remaining flex capacity leans towards training to produce additional models that could further increase revenue.',
+        inference: 35, training: 24, research: 16,
+        revenue: '$31.8B', p1: 'Inference (35%)', p2: '40%',
+        p1Pct: 35, p2Pct: 40
+    },
+    {
+        title: 'Scenario #3: Training Priority',
+        desc: 'Strategic initiative: prioritize training and shipping new models. Motivated by a breakthrough in training technique or scaling architecture. Flex capacity leans towards research as training and research compound when explored in tandem.',
+        inference: 16, training: 35, research: 24,
+        revenue: '$14.5B', p1: 'Training (35%)', p2: '40%',
+        p1Pct: 35, p2Pct: 40
+    }
+];
+
+let scenarioDonut = new Chart(document.getElementById('scenarioDonut'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Inference', 'Training', 'Research', 'Safety/SLA', 'Buffer'],
+        datasets: [{
+            data: [20, 18, 37, 10, 15],
+            backgroundColor: [COLORS.blue, COLORS.amber, COLORS.purple, COLORS.red, COLORS.green],
+            borderWidth: 2,
+            borderColor: '#fff',
+            hoverOffset: 6,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '55%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { padding: 14, font: { size: 12, weight: '500' } }
+            },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ctx.label + ': ' + ctx.parsed + '% of total capacity'
+                }
+            }
+        }
+    }
+});
+
+function switchScenario(idx) {
+    const s = scenarios[idx];
+    // Update tabs
+    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i === idx);
+    });
+    // Update donut
+    scenarioDonut.data.datasets[0].data = [s.inference, s.training, s.research, 10, 15];
+    scenarioDonut.update();
+    // Update text
+    document.getElementById('scenarioTitle').textContent = s.title;
+    document.getElementById('scenarioDesc').textContent = s.desc;
+    document.getElementById('smRevenue').textContent = s.revenue;
+    document.getElementById('smP1').textContent = s.p1;
+    document.getElementById('smP2').textContent = s.p2;
+    // Update tier bar
+    const p1El = document.getElementById('tierP1');
+    const p2El = document.getElementById('tierP2');
+    p1El.style.width = s.p1Pct + '%';
+    p1El.textContent = s.p1Pct > 0 ? 'P1: ' + s.p1Pct + '%' : '';
+    p1El.style.fontSize = s.p1Pct > 0 ? '0.82rem' : '0';
+    p2El.style.width = s.p2Pct + '%';
+    p2El.textContent = 'P2: ' + s.p2Pct + '%';
+}
+// init
+switchScenario(0);
+
+// ===== 3. SCENARIO BAR CHART =====
+new Chart(document.getElementById('scenarioBarChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Recommendation', 'Revenue Priority', 'Training Priority'],
+        datasets: [
+            {
+                label: 'Inference',
+                data: [20, 35, 16],
+                backgroundColor: COLORS.blue,
+                borderRadius: 4,
+            },
+            {
+                label: 'Training',
+                data: [18, 24, 35],
+                backgroundColor: COLORS.amber,
+                borderRadius: 4,
+            },
+            {
+                label: 'Research',
+                data: [37, 16, 24],
+                backgroundColor: COLORS.purple,
+                borderRadius: 4,
+            },
+            {
+                label: 'Safety/SLA',
+                data: [10, 10, 10],
+                backgroundColor: COLORS.red,
+                borderRadius: 4,
+            },
+            {
+                label: 'Buffer',
+                data: [15, 15, 15],
+                backgroundColor: COLORS.green,
+                borderRadius: 4,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { font: { size: 11, weight: '500' } }
+            },
+            tooltip: {
+                callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + '%' }
+            }
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { font: { weight: '600' } } },
+            y: {
+                max: 100,
+                grid: { color: 'rgba(0,0,0,0.04)' },
+                ticks: { callback: v => v + '%' },
+                title: { display: true, text: '% of Total Capacity', font: { weight: '600', size: 11 } }
+            },
+            x2: { display: false }
+        }
+    }
+});
+
+// ===== 4. SENSITIVITY CHART =====
+const sensLabels = [
+    'Recommendation',
+    'Rev → $25B',
+    '+1 Training Run',
+    'Rev/Hr ↓ $5.50\n(target same)',
+    'Rev/Hr ↓ $5.50\n(target adj)',
+    'Training 3x',
+    '70% Research'
+];
+new Chart(document.getElementById('sensitivityChart'), {
+    type: 'bar',
+    data: {
+        labels: sensLabels,
+        datasets: [
+            {
+                label: 'Inference %',
+                data: [20, 28, 20, 27, 20, 20, 3],
+                backgroundColor: COLORS.blue,
+                borderRadius: 3,
+            },
+            {
+                label: 'Training %',
+                data: [18, 18, 22, 18, 18, 13, 3],
+                backgroundColor: COLORS.amber,
+                borderRadius: 3,
+            },
+            {
+                label: 'Research %',
+                data: [37, 30, 33, 30, 37, 42, 70],
+                backgroundColor: COLORS.purple,
+                borderRadius: 3,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { font: { size: 11, weight: '500' } }
+            },
+            tooltip: {
+                callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + '%' }
+            }
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0 } },
+            y: {
+                grid: { color: 'rgba(0,0,0,0.04)' },
+                ticks: { callback: v => v + '%' },
+                title: { display: true, text: '% of Total Capacity', font: { weight: '600', size: 11 } }
+            }
+        }
+    }
+});
+
+// ===== 5. UTILIZATION CHART =====
+// Theoretical (linear): rev = util * 0.534 per point pre-discount, * 0.70 post-discount
+// Realistic (diminishing returns): models queuing effects, batching plateau, demand mix degradation
+// Uses a log-based concave function calibrated to match linear at low utilization and flatten above ~50%
+const utilLabels = ['10%','20%','30%','40%','50%','60%','70%','80%','90%'];
+const utilPoints = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+
+const linearPre = utilPoints.map(u => +(u * 0.534).toFixed(2));
+const linearPost = linearPre.map(v => +(v * 0.70).toFixed(2));
+
+// Realistic model: rev = k * ln(1 + a*util) — calibrated so it tracks linear at 20-40% and flattens
+// At 20% realistic ≈ linear, at 90% realistic ≈ 60-65% of linear
+const k = 10.68 / Math.log(1 + 0.08 * 20); // calibrate so realistic(20%) = linear(20%)
+const realisticPre = utilPoints.map(u => {
+    const base = k * Math.log(1 + 0.08 * u);
+    return +base.toFixed(2);
+});
+const realisticPost = realisticPre.map(v => +(v * 0.70).toFixed(2));
+
+new Chart(document.getElementById('utilizationChart'), {
+    type: 'line',
+    data: {
+        labels: utilLabels,
+        datasets: [
+            {
+                label: 'Theoretical (Linear)',
+                data: linearPost,
+                borderColor: COLORS.blue,
+                backgroundColor: COLORS.blueLight,
+                fill: false,
+                tension: 0,
+                pointRadius: 4,
+                pointBackgroundColor: COLORS.blue,
+                borderWidth: 2.5,
+                borderDash: [6, 3],
+            },
+            {
+                label: 'Realistic (Diminishing Returns)',
+                data: realisticPost,
+                borderColor: COLORS.accent,
+                backgroundColor: 'rgba(201,100,66,0.1)',
+                fill: true,
+                tension: 0.35,
+                pointRadius: 5,
+                pointBackgroundColor: COLORS.accent,
+                borderWidth: 2.5,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { font: { size: 11, weight: '500' } }
+            },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toFixed(2) + ' / hr'
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: { display: false },
+                title: { display: true, text: 'Utilization Rate', font: { weight: '600', size: 11 } }
+            },
+            y: {
+                grid: { color: 'rgba(0,0,0,0.04)' },
+                ticks: { callback: v => '$' + v },
+                title: { display: true, text: 'Revenue per H100 Hour (Post-Discount)', font: { weight: '600', size: 11 } }
+            }
+        }
+    }
+});
+
+// ===== 6. TRAINING BENCHMARKS =====
+new Chart(document.getElementById('trainingChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Grok 3', 'Opus 4', 'GPT 4.5', 'GPT 5', 'Sonnet 4', 'Llama 3.1', 'Sonnet 3.7', 'Grok 2', 'GPT 4'],
+        datasets: [{
+            label: 'H100 Hours (Millions)',
+            data: [258.1, 84.2, 35.9, 28.1, 28.1, 21.3, 19.1, 16.8, 11.8],
+            backgroundColor: [
+                COLORS.accent, COLORS.purple, COLORS.blue, COLORS.blue,
+                COLORS.purple, COLORS.green, COLORS.purple, COLORS.amber, COLORS.blue
+            ],
+            borderRadius: 5,
+            barThickness: 28,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ctx.parsed.x.toFixed(1) + 'M H100 hours'
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: 'rgba(0,0,0,0.04)' },
+                title: { display: true, text: 'Millions of H100 Hours', font: { weight: '600', size: 11 } },
+                ticks: { callback: v => v + 'M' }
+            },
+            y: {
+                grid: { display: false },
+                ticks: { font: { weight: '600', size: 11 } }
+            }
+        }
+    }
+});
+
+// ===== 7. SIMULATOR =====
+const TOTAL_SUPPLY = 12144285714;
+const RECOMMENDED_TRAINING = 2154882155; // 1.077B * 2 (with inefficiency multiplier)
+const ALLOCATABLE = 75; // % of total after P0 (10%) and Buffer (15%)
+
+// Revenue per H100 hr uses realistic (diminishing returns) model
+// Same log curve as the utilization chart: rev = k * ln(1 + 0.08 * util)
+// Calibrated so realistic(20%) matches the case study's $10.68 pre-discount
+const SIM_K = 10.68 / Math.log(1 + 0.08 * 20);
+const DISCOUNT = 0.70;
+
+let simDonutChart = new Chart(document.getElementById('simDonut'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Inference', 'Training', 'Research', 'Safety/SLA', 'Buffer', 'Unallocated'],
+        datasets: [{
+            data: [20, 18, 37, 10, 15, 0],
+            backgroundColor: [COLORS.blue, COLORS.amber, COLORS.purple, COLORS.red, COLORS.green, '#E5E5E0'],
+            borderWidth: 2,
+            borderColor: '#fff',
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { font: { size: 11, weight: '500' }, padding: 10 }
+            },
+            tooltip: {
+                callbacks: {
+                    label: ctx => {
+                        if (ctx.label === 'Unallocated' && ctx.parsed === 0) return null;
+                        return ctx.label + ': ' + ctx.parsed + '%';
+                    }
+                }
+            }
+        }
+    }
+});
+
+function formatB(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(0) + 'M';
+    return n.toLocaleString();
+}
+
+// Utilization mode: 'grow' = more revenue, 'free' = reduce inference to maintain revenue
+let utilMode = 'grow';
+let baselineRevenue = null;
+let baselineInfPct = null; // the inference % when lock was activated
+
+function setUtilMode(mode) {
+    utilMode = mode;
+    document.getElementById('toggleGrow').classList.toggle('active', mode === 'grow');
+    document.getElementById('toggleFree').classList.toggle('active', mode === 'free');
+
+    const infGroup = document.getElementById('infSliderGroup');
+    const autoBadge = document.getElementById('infAutoBadge');
+    const lockBadge = document.getElementById('revLockBadge');
+    const revCard = document.getElementById('simRevenueCard');
+
+    if (mode === 'free') {
+        // Capture current exact state as the baseline
+        const revPerHr = SIM_K * Math.log(1 + 0.08 * exactState.util) * DISCOUNT;
+        baselineInfPct = exactState.inf;
+        baselineRevenue = (exactState.inf / 100) * TOTAL_SUPPLY * revPerHr;
+
+        // Visual: lock inference slider, show badges
+        infGroup.classList.add('auto-controlled');
+        autoBadge.classList.add('visible');
+        lockBadge.classList.add('visible');
+        revCard.classList.add('locked');
+        document.getElementById('utilModeDesc').textContent =
+            'Revenue locked at $' + (baselineRevenue / 1e9).toFixed(1) + 'B. Drag utilization up to see inference capacity decrease and free compute for reallocation.';
+    } else {
+        baselineRevenue = null;
+        baselineInfPct = null;
+
+        // Visual: unlock inference slider, hide badges
+        infGroup.classList.remove('auto-controlled');
+        autoBadge.classList.remove('visible');
+        lockBadge.classList.remove('visible');
+        revCard.classList.remove('locked');
+        document.getElementById('utilModeDesc').textContent =
+            'Inference capacity stays fixed, higher utilization increases revenue.';
+    }
+    updateSim();
+}
+
+// Internal exact state — fractional percentages for precise calculations
+// Sliders snap to integers for manual use, but presets set exact values
+let exactState = { inf: 19.825, train: 17.75, res: 37.425, util: 20 };
+
+function updateSim() {
+    // Read from exact state (set by presets or slider input)
+    const infPct = exactState.inf;
+    const trainPct = exactState.train;
+    const resPct = exactState.res;
+    const util = exactState.util;
+
+    // Revenue per H100 hr (realistic diminishing returns model)
+    const revPerHrPre = SIM_K * Math.log(1 + 0.08 * util);
+    const revPerHr = revPerHrPre * DISCOUNT;
+
+    let displayInfPct = infPct, infHrs, revenue, freedPct = 0;
+
+    if (utilMode === 'free' && baselineRevenue !== null && revPerHr > 0) {
+        infHrs = baselineRevenue / revPerHr;
+        displayInfPct = (infHrs / TOTAL_SUPPLY) * 100;
+        revenue = baselineRevenue;
+        freedPct = Math.max(0, baselineInfPct - displayInfPct);
+
+        document.getElementById('simInf').value = Math.round(displayInfPct);
+        document.getElementById('simInfVal').textContent = Math.round(displayInfPct) + '%';
+        document.getElementById('simInfDetail').textContent = formatB(infHrs) + ' H100 hours (auto-calculated)';
+    } else {
+        infHrs = (infPct / 100) * TOTAL_SUPPLY;
+        revenue = infHrs * revPerHr;
+
+        document.getElementById('simInfVal').textContent = Math.round(infPct) + '%';
+        document.getElementById('simInfDetail').textContent = formatB(infHrs) + ' H100 hours';
+    }
+
+    const trainHrs = (trainPct / 100) * TOTAL_SUPPLY;
+    const resHrs = (resPct / 100) * TOTAL_SUPPLY;
+
+    // Exact fractional total for budget — no rounding artifacts
+    const exactTotal = displayInfPct + trainPct + resPct;
+    const displayTotal = Math.round(exactTotal);
+    const unalloc = Math.max(0, ALLOCATABLE - displayTotal);
+    const over = exactTotal > ALLOCATABLE + 0.5; // half-percent tolerance
+
+    // Slider value labels
+    document.getElementById('simTrainVal').textContent = Math.round(trainPct) + '%';
+    document.getElementById('simResVal').textContent = Math.round(resPct) + '%';
+    document.getElementById('simUtilVal').textContent = Math.round(util) + '%';
+
+    document.getElementById('simTrainDetail').textContent = formatB(trainHrs) + ' H100 hours';
+    document.getElementById('simResDetail').textContent = formatB(resHrs) + ' H100 hours';
+    document.getElementById('simUtilDetail').textContent = 'Revenue per H100 hr: $' + revPerHr.toFixed(2) + ' (post-discount, diminishing returns)';
+
+    // Output cards
+    document.getElementById('simRevenue').textContent = '$' + (revenue / 1e9).toFixed(1) + 'B';
+    if (utilMode === 'free' && freedPct > 0.1) {
+        document.getElementById('simRevSub').textContent =
+            freedPct.toFixed(1) + '% capacity freed (' + formatB(freedPct / 100 * TOTAL_SUPPLY) + ' H100 hrs)';
+    } else {
+        document.getElementById('simRevSub').textContent = 'At ' + Math.round(util) + '% utilization, post-discount';
+    }
+    document.getElementById('simTrainCap').textContent = formatB(trainHrs);
+    document.getElementById('simResHrs').textContent = formatB(resHrs);
+    document.getElementById('simRevHr').textContent = '$' + revPerHr.toFixed(2);
+    document.getElementById('simRevHrSub').textContent = 'Pre-discount: $' + revPerHrPre.toFixed(2);
+
+    // Budget bar
+    const budgetFill = document.getElementById('budgetBarFill');
+    budgetFill.style.width = Math.min(exactTotal / 75 * 75, 100) + '%';
+    if (over) {
+        budgetFill.classList.add('over');
+        document.getElementById('budgetLabel').innerHTML = '<span style="color:var(--red); font-weight:700;">' + displayTotal + '% / ' + ALLOCATABLE + '% &mdash; Over-allocated by ' + (displayTotal - ALLOCATABLE) + '%</span>';
+    } else if (Math.abs(exactTotal - ALLOCATABLE) < 0.5) {
+        budgetFill.classList.remove('over');
+        document.getElementById('budgetLabel').innerHTML = '<span style="color:var(--green); font-weight:700;">75% / 75% &check; Fully allocated</span>';
+    } else {
+        budgetFill.classList.remove('over');
+        const label = utilMode === 'free' && freedPct > 0.1
+            ? displayTotal + '% / ' + ALLOCATABLE + '% &mdash; ' + unalloc + '% available <span style="color:var(--green);">(' + freedPct.toFixed(1) + '% freed)</span>'
+            : displayTotal + '% / ' + ALLOCATABLE + '% &mdash; ' + unalloc + '% unallocated';
+        document.getElementById('budgetLabel').innerHTML = '<span style="font-weight:600;">' + label + '</span>';
+    }
+
+    // Update donut
+    const donutInf = Math.round(displayInfPct);
+    const donutTrain = Math.round(trainPct);
+    const donutRes = Math.round(resPct);
+    const donutUnalloc = Math.max(0, 75 - donutInf - donutTrain - donutRes);
+    simDonutChart.data.datasets[0].data = [donutInf, donutTrain, donutRes, 10, 15, donutUnalloc > 0 ? donutUnalloc : 0];
+    simDonutChart.update();
+}
+
+// Called by slider oninput — reads integer slider values into exact state
+function onSliderInput() {
+    exactState.inf = parseInt(document.getElementById('simInf').value);
+    exactState.train = parseInt(document.getElementById('simTrain').value);
+    exactState.res = parseInt(document.getElementById('simRes').value);
+    exactState.util = parseInt(document.getElementById('simUtil').value);
+    updateSim();
+}
+
+// Presets: exact fractional values that match the case study precisely
+// Recommendation: $18B / $7.476/hr = 2,407,703,209 hrs = 19.825% of supply
+// 70% Research: 2.5% inf + 2.5% train + 70% res = 75% exactly
+function applyPreset(inf, train, res, util) {
+    utilMode = 'grow';
+    baselineRevenue = null;
+    baselineInfPct = null;
+    document.getElementById('toggleGrow').classList.add('active');
+    document.getElementById('toggleFree').classList.remove('active');
+    document.getElementById('infSliderGroup').classList.remove('auto-controlled');
+    document.getElementById('infAutoBadge').classList.remove('visible');
+    document.getElementById('revLockBadge').classList.remove('visible');
+    document.getElementById('simRevenueCard').classList.remove('locked');
+    document.getElementById('utilModeDesc').textContent = 'Inference capacity stays fixed, higher utilization increases revenue.';
+
+    // Set exact state (fractional)
+    exactState = { inf, train, res, util };
+
+    // Sync sliders to nearest integer for visual position
+    document.getElementById('simInf').value = Math.round(inf);
+    document.getElementById('simTrain').value = Math.round(train);
+    document.getElementById('simRes').value = Math.round(res);
+    document.getElementById('simUtil').value = Math.round(util);
+    updateSim();
+}
+
+// Initialize
+updateSim();
+</script>
+</body>
+</html>

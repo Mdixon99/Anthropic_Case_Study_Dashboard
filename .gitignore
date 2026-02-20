@@ -1,0 +1,5 @@
+*.xlsx
+*.docx
+*.pdf
+temp_*
+.claude/
